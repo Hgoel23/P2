@@ -1,0 +1,73 @@
+!pip install selenium
+!sudo apt-get update
+!apt install chromium-chromedriver
+!cp /usr/lib/chromium-browser/chromedriver /usr/bin
+import sys
+sys.path.insert(0,'/usr/lib/chromium-browser/chromedriver')
+from selenium import webdriver
+chrome_options = webdriver.ChromeOptions()
+chrome_options.add_argument('--headless')
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+wd = webdriver.Chrome('chromedriver',chrome_options=chrome_options)
+wd.get('https://www.flipkart.com/mobiles/mi~brand/pr?sid=tyy%2C4io&otracker=nmenu_sub_Electronics_0_Mi&page=1')
+wd.title
+
+
+
+ram = []
+mem = []
+price = []
+
+while len(ram)<=200:
+  char = wd.find_elements_by_class_name("tVe95H")
+
+  for i in char:
+    temp = i.text.split()
+    if 'RAM' in temp and 'ROM' in temp:
+      ram.append(int(temp[temp.index('RAM')-2]))
+      mem.append(int(temp[temp.index('ROM')-2]))
+
+  p = wd.find_elements_by_xpath('//*[@class="_1vC4OE _2rQ-NK"]')
+  for i in p:
+    price.append(int(i.text[1:].replace(',',''))) #12999
+
+  wd.get(wd.find_element_by_class_name("_3fVaIS").get_attribute('href'))
+  
+  print(len(ram),len(mem),len(price))
+  
+  import numpy as np
+x = np.array((ram,mem)).T
+y = np.array(price)
+
+print(x.shape,y.shape)
+
+import pandas as pd
+
+X = pd.DataFrame(x,columns=['RAM','ROM'])
+Y = pd.DataFrame(y,columns=["Price"])
+
+print(X)
+print(Y)
+
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+
+x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=101)
+
+lm = LinearRegression()
+lm.fit(x_train,y_train)
+print(lm.intercept_)
+print(lm.coef_)
+
+cdf = pd.DataFrame(data=lm.coef_.reshape(2,1),index=x_train.columns,columns=['Coeff'])
+cdf
+
+import matplotlib.pyplot as plt
+
+predictions = lm.predict(x_test)
+plt.scatter(y_test,predictions)
+
+from sklearn import metrics
+print('MAE:', metrics.mean_absolute_error(y_test, predictions))
+print('RMSE:', np.sqrt(metrics.mean_squared_error(y_test, predictions)))
